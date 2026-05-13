@@ -16,8 +16,11 @@ export default async function Hero() {
 
   const prompt = content.hero_prompt ?? "What would you say if they could hear you?";
   const tagline = content.hero_tagline ?? "dear stranger,";
+  const dbRowCount = (data ?? []).length; // debug — remove after fix
   return (
     <section className="relative mx-auto max-w-6xl px-8 pt-16 pb-20 overflow-hidden">
+      {/* DEBUG — remove after fix */}
+      <p className="text-[10px] text-warm/50 mb-1">db rows: {dbRowCount} | prompt: {prompt} | tagline: {tagline}</p>
       {/* Decorative scattered elements */}
       <div className="pointer-events-none absolute top-8 left-[6%] font-serif text-7xl text-warm/15 rotate-[-12deg] select-none">
         &ldquo;
