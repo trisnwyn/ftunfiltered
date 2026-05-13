@@ -1,6 +1,21 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Hero() {
+export default async function Hero() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("site_content")
+    .select("key, value")
+    .in("key", ["hero_prompt", "hero_tagline"]);
+
+  if (error) console.error("[Hero] site_content fetch failed:", error.message);
+
+  const content = Object.fromEntries(
+    (data ?? []).map((r: { key: string; value: string }) => [r.key, r.value])
+  );
+
+  const prompt = content.hero_prompt ?? "What would you say if they could hear you?";
+  const tagline = content.hero_tagline ?? "dear stranger,";
   return (
     <section className="relative mx-auto max-w-6xl px-8 pt-16 pb-20 overflow-hidden">
       {/* Decorative scattered elements */}
@@ -17,7 +32,7 @@ export default function Hero() {
         {/* Left: Text */}
         <div className="pt-8">
           <p className="text-sm text-warm italic font-serif mb-4">
-            dear stranger,
+            {tagline}
           </p>
 
           <h1 className="font-serif text-6xl leading-[1.08] tracking-tight sm:text-7xl md:text-8xl font-normal text-ink">
@@ -69,7 +84,7 @@ export default function Hero() {
               <div className="paper-inner px-5 py-5">
                 <p className="section-label mb-3 text-[10px]">Today&apos;s prompt</p>
                 <p className="font-serif text-xl italic leading-snug text-ink">
-                  &ldquo;What would you say if they could hear you?&rdquo;
+                  &ldquo;{prompt}&rdquo;
                 </p>
                 <hr className="dashed-line my-4" />
                 <Link
