@@ -1,26 +1,251 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-cream: #F5F0E8;
+  --color-cream-dark: #EBE4D8;
+  --color-cream-light: #FAF7F2;
+  --color-card: #F6F3ED;
+  --color-ink: #1A1512;
+  --color-ink-light: #6B5E50;
+  --color-earth: #8B4543;
+  --color-earth-light: #A85856;
+  --color-earth-pale: #F2D9D5;
+  --color-warm: #9E8E7A;
+  --color-warm-light: #B8A890;
+  --color-tape: #CEBF9E;
+  --color-border: #D8CCBC;
+  --color-pin: #8B4543;
+  --font-serif: var(--font-lora);
+  --font-sans: var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream);
+  background-image:
+    linear-gradient(rgba(160, 145, 120, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(160, 145, 120, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--color-ink);
+}
+
+::selection {
+  background: var(--color-earth-pale);
+  color: var(--color-ink);
+}
+
+/* ── Tape strips ─────────────────────────────── */
+
+.tape {
+  position: absolute;
+  z-index: 10;
+  height: 24px;
+  background: linear-gradient(
+    180deg,
+    rgba(220, 210, 180, 0.9),
+    rgba(195, 183, 150, 0.85)
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.tape::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 6px,
+    rgba(255, 255, 255, 0.12) 6px,
+    rgba(255, 255, 255, 0.12) 7px
+  );
+}
+
+.tape-sm {
+  width: 60px;
+}
+
+.tape-md {
+  width: 80px;
+}
+
+.tape-lg {
+  width: 100px;
+}
+
+.tape-center {
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1deg);
+}
+
+.tape-left {
+  top: -10px;
+  left: 20px;
+  transform: rotate(-18deg);
+}
+
+.tape-right {
+  top: -10px;
+  right: 20px;
+  left: auto;
+  transform: rotate(14deg);
+}
+
+/* ── Pin dots ────────────────────────────────── */
+
+.pin {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    #c4756e 0%,
+    #8b4543 50%,
+    #5c2d2d 100%
+  );
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.pin::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  width: 5px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 50%;
+}
+
+/* ── Paper card ───────────────────────────────── */
+
+.paper {
+  background: var(--color-card);
+  border: 1px solid rgba(180, 167, 147, 0.35);
+  box-shadow:
+    2px 3px 12px rgba(0, 0, 0, 0.07),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.paper-inner {
+  border: 1px solid rgba(180, 167, 147, 0.18);
+  border-radius: 2px;
+}
+
+/* ── Highlight / underline ────────────────────── */
+
+.highlight-red {
+  background: linear-gradient(
+    180deg,
+    transparent 60%,
+    rgba(139, 69, 67, 0.15) 60%,
+    rgba(139, 69, 67, 0.15) 88%,
+    transparent 88%
+  );
+  padding: 0 4px;
+}
+
+.underline-red {
+  text-decoration: none;
+  border-bottom: 2px solid var(--color-earth);
+  padding-bottom: 2px;
+}
+
+/* ── Dashed line ──────────────────────────────── */
+
+.dashed-line {
+  border: none;
+  border-top: 1px dashed rgba(180, 167, 147, 0.5);
+}
+
+/* ── Section dash ─────────────────────────────── */
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-warm);
+}
+
+.section-label::before {
+  content: "——";
+  color: var(--color-warm-light);
+}
+
+/* ── Rich text editor ─────────────────────────── */
+
+.tiptap {
+  min-height: 180px;
+}
+
+.tiptap p {
+  margin: 0.4em 0;
+}
+
+.tiptap h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  font-style: normal;
+  margin: 0.6em 0 0.3em;
+}
+
+.tiptap h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  font-style: normal;
+  margin: 0.5em 0 0.2em;
+}
+
+.tiptap blockquote {
+  border-left: 3px solid var(--color-earth);
+  padding-left: 1em;
+  margin: 0.6em 0;
+  opacity: 0.85;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-warm-light);
+  opacity: 0.5;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* ── Post content (rendered cards) ────────────── */
+
+.post-content p {
+  margin: 0.3em 0;
+}
+
+.post-content h2 {
+  font-size: 1.2em;
+  font-weight: 600;
+  font-style: normal;
+  margin: 0.4em 0 0.2em;
+}
+
+.post-content h3 {
+  font-size: 1.05em;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.post-content blockquote {
+  border-left: 2px solid var(--color-earth);
+  padding-left: 0.8em;
+  margin: 0.4em 0;
+  opacity: 0.85;
 }
