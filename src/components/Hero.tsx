@@ -3,24 +3,22 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function Hero() {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("site_content")
     .select("key, value")
-    .in("key", ["hero_prompt", "hero_tagline"]);
-
-  if (error) console.error("[Hero] site_content fetch failed:", error.message);
+    .in("key", ["hero_prompt", "hero_tagline", "hero_headline", "hero_subline"]);
 
   const content = Object.fromEntries(
     (data ?? []).map((r: { key: string; value: string }) => [r.key, r.value])
   );
 
-  const prompt = content.hero_prompt ?? "What would you say if they could hear you?";
-  const tagline = content.hero_tagline ?? "dear stranger,";
-  const dbRowCount = (data ?? []).length; // debug — remove after fix
+  const prompt    = content.hero_prompt    ?? "What would you say if they could hear you?";
+  const tagline   = content.hero_tagline   ?? "dear stranger,";
+  const headline  = content.hero_headline  ?? "Some words\nare too heavy\nto keep.";
+  const subline   = content.hero_subline   ?? "leave them here.";
+
   return (
     <section className="relative mx-auto max-w-6xl px-8 pt-16 pb-20 overflow-hidden">
-      {/* DEBUG — remove after fix */}
-      <p className="text-[10px] text-warm/50 mb-1">db rows: {dbRowCount} | prompt: {prompt} | tagline: {tagline}</p>
       {/* Decorative scattered elements */}
       <div className="pointer-events-none absolute top-8 left-[6%] font-serif text-7xl text-warm/15 rotate-[-12deg] select-none">
         &ldquo;
@@ -38,16 +36,12 @@ export default async function Hero() {
             {tagline}
           </p>
 
-          <h1 className="font-serif text-6xl leading-[1.08] tracking-tight sm:text-7xl md:text-8xl font-normal text-ink">
-            Some words
-            <br />
-            are too heavy
-            <br />
-            to keep.
+          <h1 className="whitespace-pre-line font-serif text-6xl leading-[1.08] tracking-tight sm:text-7xl md:text-8xl font-normal text-ink">
+            {headline}
           </h1>
 
           <p className="mt-4 font-serif text-2xl italic sm:text-3xl">
-            <span className="underline-red text-earth">leave them here.</span>
+            <span className="underline-red text-earth">{subline}</span>
           </p>
 
           <p className="mt-10 max-w-md text-[15px] leading-relaxed text-ink-light">

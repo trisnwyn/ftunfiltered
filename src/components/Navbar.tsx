@@ -33,6 +33,12 @@ export default function Navbar() {
             About
           </Link>
           <Link
+            href="/support"
+            className="text-sm text-ink-light hover:text-earth transition-colors"
+          >
+            Support
+          </Link>
+          <Link
             href="/contact"
             className="text-sm text-ink-light hover:text-earth transition-colors"
           >
