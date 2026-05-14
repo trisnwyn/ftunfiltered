@@ -1,0 +1,68 @@
+export const TEMPLATES = [
+  {
+    id: "default",
+    label: "Default",
+    previewBg: "#F6F3ED",
+    previewText: "#1A1512",
+    cardBg: "#F6F3ED",
+    cardBorder: "rgba(180,167,147,0.35)",
+    innerBorder: "rgba(180,167,147,0.18)",
+    textClass: "text-ink/80",
+    headingClass: "text-ink",
+    metaClass: "text-warm",
+    heartInactive: "text-ink-light hover:text-earth",
+    heartActive: "text-earth",
+    reportClass: "text-warm/40 hover:text-earth",
+  },
+  {
+    id: "dark_night",
+    label: "Dark Night",
+    previewBg: "#1C1714",
+    previewText: "#DDD5C8",
+    cardBg: "#1C1714",
+    cardBorder: "rgba(60,45,35,0.6)",
+    innerBorder: "rgba(60,45,35,0.3)",
+    textClass: "text-[#DDD5C8]/80",
+    headingClass: "text-[#DDD5C8]",
+    metaClass: "text-[#9E8060]",
+    heartInactive: "text-[#9E8060] hover:text-[#C4756E]",
+    heartActive: "text-[#C4756E]",
+    reportClass: "text-[#9E8060]/40 hover:text-[#C4756E]",
+  },
+  {
+    id: "blush",
+    label: "Blush",
+    previewBg: "#FDF5F3",
+    previewText: "#4A3330",
+    cardBg: "#FDF5F3",
+    cardBorder: "rgba(200,150,140,0.35)",
+    innerBorder: "rgba(200,150,140,0.2)",
+    textClass: "text-[#4A3330]/80",
+    headingClass: "text-[#4A3330]",
+    metaClass: "text-[#B07570]",
+    heartInactive: "text-[#B07570] hover:text-[#B05C58]",
+    heartActive: "text-[#B05C58]",
+    reportClass: "text-[#B07570]/40 hover:text-[#B05C58]",
+  },
+  {
+    id: "ocean",
+    label: "Ocean",
+    previewBg: "#EFF4F7",
+    previewText: "#2D3E4E",
+    cardBg: "#EFF4F7",
+    cardBorder: "rgba(120,165,190,0.35)",
+    innerBorder: "rgba(120,165,190,0.2)",
+    textClass: "text-[#2D3E4E]/80",
+    headingClass: "text-[#2D3E4E]",
+    metaClass: "text-[#5B8FAA]",
+    heartInactive: "text-[#5B8FAA] hover:text-[#3D6B8A]",
+    heartActive: "text-[#3D6B8A]",
+    reportClass: "text-[#5B8FAA]/40 hover:text-[#3D6B8A]",
+  },
+] as const;
+
+export type TemplateId = (typeof TEMPLATES)[number]["id"];
+
+export function getTemplate(id: string) {
+  return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
+}

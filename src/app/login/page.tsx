@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,27 +20,31 @@ export default function LoginPage() {
     setMessage("");
     setLoading(true);
 
-    const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/signup";
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error);
-      return;
-    }
-
-    if (mode === "signup") {
-      setMessage(data.message);
-    } else {
+    if (mode === "login") {
+      // Sign in directly via browser client so session cookies are set correctly
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+      if (error) {
+        setError(error.message);
+        return;
+      }
       router.push("/");
       router.refresh();
+    } else {
+      // Signup goes through API for domain validation
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      setLoading(false);
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
+      setMessage(data.message);
     }
   }
 

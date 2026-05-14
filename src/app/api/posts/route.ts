@@ -38,19 +38,22 @@ export async function GET(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let postsWithHearts = posts;
+  // Remap post_photos → photos to match Post type
+  const normalized = (posts as any[]).map(({ post_photos, ...rest }) => ({
+    ...rest,
+    photos: post_photos ?? [],
+  }));
+
+  let postsWithHearts = normalized;
   if (user) {
     const { data: userHearts } = await supabase
       .from("hearts")
       .select("post_id")
       .eq("user_id", user.id)
-      .in(
-        "post_id",
-        posts.map((p) => p.id)
-      );
+      .in("post_id", normalized.map((p) => p.id));
 
     const heartedIds = new Set(userHearts?.map((h) => h.post_id) || []);
-    postsWithHearts = posts.map((p) => ({
+    postsWithHearts = normalized.map((p) => ({
       ...p,
       hearted_by_user: heartedIds.has(p.id),
     }));
