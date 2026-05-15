@@ -1,4 +1,4 @@
-export type PostType = "confession" | "letter" | "shoutout" | "rant";
+export type PostType   = "confession" | "letter" | "shoutout" | "rant";
 export type PostStatus = "approved" | "pending" | "rejected";
 
 export interface Post {
@@ -11,8 +11,25 @@ export interface Post {
   hearts_count: number;
   status: PostStatus;
   created_at: string;
+  accepts_letters?: boolean;
+  content_warnings?: string[];
   photos?: PostPhoto[];
-  hearted_by_user?: boolean;
+  hearted_by_user?:    boolean;
+  bookmarked_by_user?: boolean;
+}
+
+export type LetterStatus = "pending" | "delivered" | "rejected";
+
+export interface Letter {
+  id: string;
+  post_id: string;
+  sender_user_id: string;
+  recipient_user_id: string;
+  content: string;
+  status: LetterStatus;
+  read_at: string | null;
+  created_at: string;
+  post?: Pick<Post, "id" | "type" | "content" | "template">;
 }
 
 export interface PostPhoto {

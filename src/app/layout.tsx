@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import { ToastProvider } from "@/components/Toaster";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,8 +30,11 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} ${lora.variable}`}>
       <body className="min-h-screen bg-cream text-ink antialiased">
         <AuthProvider>
-          <Navbar />
-          {children}
+          <ToastProvider>
+            <Navbar />
+            {children}
+            <Footer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

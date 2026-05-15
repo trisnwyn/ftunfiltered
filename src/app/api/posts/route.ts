@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { moderateContent } from "@/lib/moderation";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -44,23 +46,27 @@ export async function GET(request: Request) {
     photos: post_photos ?? [],
   }));
 
-  let postsWithHearts = normalized;
+  let postsWithMeta = normalized;
   if (user) {
-    const { data: userHearts } = await supabase
-      .from("hearts")
-      .select("post_id")
-      .eq("user_id", user.id)
-      .in("post_id", normalized.map((p) => p.id));
+    const postIds = normalized.map((p) => p.id);
 
-    const heartedIds = new Set(userHearts?.map((h) => h.post_id) || []);
-    postsWithHearts = normalized.map((p) => ({
+    const [{ data: userHearts }, { data: userBookmarks }] = await Promise.all([
+      supabase.from("hearts").select("post_id").eq("user_id", user.id).in("post_id", postIds),
+      supabase.from("bookmarks").select("post_id").eq("user_id", user.id).in("post_id", postIds),
+    ]);
+
+    const heartedIds    = new Set(userHearts?.map((h) => h.post_id) || []);
+    const bookmarkedIds = new Set(userBookmarks?.map((b) => b.post_id) || []);
+
+    postsWithMeta = normalized.map((p) => ({
       ...p,
-      hearted_by_user: heartedIds.has(p.id),
+      hearted_by_user:    heartedIds.has(p.id),
+      bookmarked_by_user: bookmarkedIds.has(p.id),
     }));
   }
 
   return NextResponse.json({
-    posts: postsWithHearts,
+    posts: postsWithMeta,
     total: count,
     page,
     totalPages: Math.ceil((count || 0) / limit),
@@ -78,7 +84,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { type, content, template, styles } = await request.json();
+  const { type, content, template, styles, accepts_letters, content_warnings } = await request.json();
 
   if (!type || !content) {
     return NextResponse.json(
@@ -99,33 +105,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid post type" }, { status: 400 });
   }
 
-  // AI moderation check
-  let status: "approved" | "pending" = "approved";
-  try {
-    const modResult = await fetch(
-      `${new URL(request.url).origin}/api/moderation`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: content }),
-      }
-    );
-    const modData = await modResult.json();
-    if (modData.flagged) {
-      status = "pending";
-    }
-  } catch {
-    status = "pending";
-  }
+  // AI moderation check (in-process; no public HTTP proxy)
+  const modResult = await moderateContent(content);
+  const status: "approved" | "pending" = modResult.flagged ? "pending" : "approved";
 
-  const { data, error } = await supabase
+  const adminSupabase = createAdminClient();
+  const { data, error } = await adminSupabase
     .from("posts")
     .insert({
       user_id: user.id,
       type,
       content,
-      template: template || "minimal",
-      styles: styles || {},
+      template:        template || "default",
+      styles:          styles || {},
+      accepts_letters:  accepts_letters === true,
+      content_warnings: Array.isArray(content_warnings) ? content_warnings : [],
       status,
     })
     .select()

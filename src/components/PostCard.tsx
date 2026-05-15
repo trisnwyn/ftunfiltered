@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import DOMPurify from "dompurify";
 import type { Post } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/Toaster";
 import { getTemplate } from "@/lib/templates";
+import { getCWLabels } from "@/lib/content-warnings";
 
 const TYPE_CONFIG = {
   confession: { label: "Confession" },
@@ -169,9 +172,16 @@ export default function PostCard({
   index?: number;
 }) {
   const { user } = useAuth();
-  const [hearts, setHearts] = useState(post.hearts_count);
-  const [hearted, setHearted] = useState(post.hearted_by_user || false);
-  const [busy, setBusy] = useState(false);
+  const toast    = useToast();
+  const [hearts, setHearts]         = useState(post.hearts_count);
+  const [hearted, setHearted]       = useState(post.hearted_by_user || false);
+  const [bookmarked, setBookmarked] = useState(post.bookmarked_by_user || false);
+  const [busy, setBusy]             = useState(false);
+  const [showComposer, setShowComposer]   = useState(false);
+  const [letterContent, setLetterContent] = useState("");
+  const [letterSending, setLetterSending] = useState(false);
+  const hasWarnings = (post.content_warnings?.length ?? 0) > 0;
+  const [revealed, setRevealed] = useState(!hasWarnings);
 
   const config   = TYPE_CONFIG[post.type];
   const tmpl     = getTemplate(post.template);
@@ -207,19 +217,58 @@ export default function PostCard({
     setBusy(false);
   }
 
+  async function toggleBookmark() {
+    if (!user || post.id === "preview") return;
+    setBookmarked((b) => !b); // optimistic
+    const res = await fetch("/api/bookmarks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ post_id: post.id }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setBookmarked(data.bookmarked);
+      toast.success(data.bookmarked ? "Saved to your bookmarks" : "Removed from bookmarks");
+    } else {
+      setBookmarked((b) => !b); // revert on error
+      toast.error("Couldn't save. Try again.");
+    }
+  }
+
+  async function sendLetter() {
+    if (!letterContent.trim() || letterSending) return;
+    setLetterSending(true);
+    const res = await fetch("/api/letters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ post_id: post.id, content: letterContent }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast.success(data.message || "Letter sent anonymously.");
+      setLetterContent("");
+      setShowComposer(false);
+    } else {
+      toast.error(data.error || "Failed to send. Try again.");
+    }
+    setLetterSending(false);
+  }
+
   async function reportPost() {
     if (!user) return;
     const reason = prompt("Why are you reporting this post?");
     if (reason === null) return;
-    await fetch("/api/reports", {
+    const res = await fetch("/api/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ post_id: post.id, reason }),
     });
-    alert("Report submitted. Thank you.");
+    if (res.ok) toast.success("Report submitted. Thank you.");
+    else        toast.error("Couldn't submit report. Try again.");
   }
 
   return (
+    <>
     <article
       className={`relative rounded-sm pt-3 overflow-hidden transition-all duration-300 hover:shadow-lg hover:rotate-0 hover:z-10 ${tilt}`}
       style={{
@@ -266,45 +315,129 @@ export default function PostCard({
           </span>
         </div>
 
-        {/* Content */}
-        <div
-          className={`post-content font-serif text-[15px] leading-relaxed ${tmpl.textClass}`}
-          dangerouslySetInnerHTML={{ __html: sanitized }}
-        />
+        {/* Content (with optional content-warning veil) */}
+        <div className="relative">
+          <div
+            className={`post-content font-serif text-[15px] leading-relaxed ${tmpl.textClass} ${
+              !revealed ? "blur-md select-none pointer-events-none" : ""
+            }`}
+            dangerouslySetInnerHTML={{ __html: sanitized }}
+          />
 
-        {/* Extra photos */}
-        {extraPhotos.length > 0 && (
-          <div className="mt-4 flex gap-2">
-            {extraPhotos.map((photo) => (
-              <img
-                key={photo.id}
-                src={photo.url}
-                alt=""
-                className="h-24 w-24 rounded-sm object-cover"
-                style={{ border: `1px solid ${tmpl.innerBorder}` }}
-              />
-            ))}
-          </div>
-        )}
+          {/* Extra photos */}
+          {extraPhotos.length > 0 && (
+            <div className={`mt-4 flex gap-2 ${
+              !revealed ? "blur-md select-none pointer-events-none" : ""
+            }`}>
+              {extraPhotos.map((photo) => (
+                <img
+                  key={photo.id}
+                  src={photo.url}
+                  alt=""
+                  className="h-24 w-24 rounded-sm object-cover"
+                  style={{ border: `1px solid ${tmpl.innerBorder}` }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* CW reveal overlay */}
+          {!revealed && hasWarnings && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 py-6 rounded-sm"
+              style={{ background: `${tmpl.cardBg}f0` }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className={`mb-2 ${tmpl.headingClass}`}>
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <p className={`text-[10px] uppercase tracking-[0.2em] mb-1 ${tmpl.metaClass}`}>
+                Content warning
+              </p>
+              <p className={`font-serif text-sm mb-3 ${tmpl.headingClass}`}>
+                {getCWLabels(post.content_warnings).join(" · ")}
+              </p>
+              <button
+                onClick={() => setRevealed(true)}
+                className="rounded-sm bg-earth px-4 py-1.5 text-xs font-medium text-cream-light transition-colors hover:bg-earth-light"
+              >
+                Reveal anyway
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Divider */}
         <div className="my-4 border-t border-dashed" style={{ borderColor: tmpl.cardBorder }} />
 
         {/* Footer */}
         <div className="flex items-center justify-between">
-          <button
-            onClick={toggleHeart}
-            disabled={!user || busy}
-            className={`inline-flex items-center gap-1.5 text-sm transition-colors ${
-              hearted ? `${tmpl.heartActive} font-medium` : tmpl.heartInactive
-            } disabled:opacity-40`}
-          >
-            {hearted ? "❤️" : "♡"} {hearts}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleHeart}
+              disabled={!user || busy}
+              className={`inline-flex items-center gap-1.5 text-sm transition-colors ${
+                hearted ? `${tmpl.heartActive} font-medium` : tmpl.heartInactive
+              } disabled:opacity-40`}
+            >
+              {hearted ? "❤️" : "♡"} {hearts}
+            </button>
+            {/* Write to them */}
+            {post.id !== "preview" && post.accepts_letters && user && user.id !== post.user_id && (
+              <button
+                onClick={() => setShowComposer((s) => !s)}
+                className={`inline-flex items-center gap-1 text-[11px] font-serif italic transition-colors ${
+                  showComposer ? tmpl.heartActive : tmpl.heartInactive
+                }`}
+                title="Write to them anonymously"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2"/>
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+                write to them
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <span className={`text-[10px] tracking-[0.15em] uppercase italic opacity-60 ${tmpl.metaClass}`}>
               &mdash; a stranger
             </span>
+            {/* Bookmark */}
+            {post.id !== "preview" && (
+              <button
+                onClick={toggleBookmark}
+                disabled={!user}
+                className={`transition-colors disabled:opacity-30 ${
+                  bookmarked ? tmpl.heartActive : tmpl.reportClass
+                }`}
+                title={bookmarked ? "Remove bookmark" : "Save post"}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24"
+                  fill={bookmarked ? "currentColor" : "none"}
+                  stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                </svg>
+              </button>
+            )}
+            {post.id !== "preview" && (
+              <Link
+                href={`/posts/${post.id}`}
+                className={`transition-colors ${tmpl.reportClass}`}
+                title="Open post"
+                aria-label="Open post"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </Link>
+            )}
             <button
               onClick={reportPost}
               disabled={!user}
@@ -322,5 +455,42 @@ export default function PostCard({
         </div>
       </div>
     </article>
+
+    {/* ── Letter composer ── */}
+    {showComposer && post.id !== "preview" && (
+      <div className="mt-2 paper rounded-sm px-5 py-4" style={{ border: `1px solid ${tmpl.cardBorder}` }}>
+        <p className={`text-[10px] uppercase tracking-wider mb-2 ${tmpl.metaClass}`}>
+          Write to them — anonymously
+        </p>
+        <textarea
+          value={letterContent}
+          onChange={(e) => setLetterContent(e.target.value)}
+          maxLength={1000}
+          rows={4}
+          placeholder="Say what you want them to know..."
+          className="w-full resize-none rounded-sm bg-transparent font-serif text-sm text-ink placeholder:text-warm/50 focus:outline-none"
+          style={{ borderBottom: `1px dashed ${tmpl.innerBorder}`, paddingBottom: "8px" }}
+        />
+        <div className="mt-2 flex items-center justify-between">
+          <span className={`text-[10px] ${tmpl.metaClass}`}>{letterContent.length}/1000</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowComposer(false)}
+              className={`text-xs transition-colors ${tmpl.reportClass}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={sendLetter}
+              disabled={letterSending || !letterContent.trim()}
+              className="rounded-sm bg-earth px-4 py-1.5 text-xs font-medium text-cream-light transition-colors hover:bg-earth-light disabled:opacity-40"
+            >
+              {letterSending ? "Sending..." : "Send anonymously"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
