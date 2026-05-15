@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { moderateContent } from "@/lib/moderation";
+import { sendLetterNotification } from "@/lib/email";
 import { NextResponse } from "next/server";
 
 const MAX_LENGTH      = 1000;
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
   // Check recipient's global letter setting (defaults to true if no row)
   const { data: recipientSettings } = await admin
     .from("user_settings")
-    .select("accept_letters_globally")
+    .select("accept_letters_globally, email_notifications")
     .eq("user_id", post.user_id)
     .maybeSingle();
 
@@ -124,6 +125,18 @@ export async function POST(request: Request) {
 
   if (insertErr) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  }
+
+  // Email notification — fire-and-forget so it never delays the response
+  if (status === "delivered") {
+    const notificationsEnabled = recipientSettings?.email_notifications !== false;
+    if (notificationsEnabled) {
+      // Fetch the recipient's email address via the admin auth API
+      admin.auth.admin.getUserById(post.user_id).then(({ data }) => {
+        const email = data?.user?.email;
+        if (email) sendLetterNotification(email).catch(() => {});
+      }).catch(() => {});
+    }
   }
 
   return NextResponse.json({

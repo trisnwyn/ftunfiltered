@@ -7,8 +7,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
   const sort = searchParams.get("sort") || "newest";
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "12");
+  const rawPage  = parseInt(searchParams.get("page")  || "1");
+  const rawLimit = parseInt(searchParams.get("limit") || "12");
+  const page  = Math.max(1, isNaN(rawPage)  ? 1  : rawPage);
+  const limit = Math.min(50, Math.max(1, isNaN(rawLimit) ? 12 : rawLimit));
   const offset = (page - 1) * limit;
 
   const supabase = await createClient();
@@ -93,7 +95,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (content.length > 2000) {
+  // Strip HTML tags to match client-side plain-text length validation
+  const plainText = content.replace(/<[^>]*>/g, "").trim();
+  if (plainText.length > 2000) {
     return NextResponse.json(
       { error: "Content must be under 2000 characters" },
       { status: 400 }

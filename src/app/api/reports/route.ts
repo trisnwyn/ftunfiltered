@@ -26,6 +26,10 @@ export async function POST(request: Request) {
     .insert({ post_id, user_id: user.id, reason: reason || "" });
 
   if (error) {
+    // 23505 = unique_violation — user already reported this post
+    if (error.code === "23505") {
+      return NextResponse.json({ message: "Already reported" });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

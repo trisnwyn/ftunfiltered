@@ -11,24 +11,39 @@ import { NextResponse } from "next/server";
  *
  * Defenses:
  *   - Requires a signed-in user
- *   - Per-user in-memory rate limit (20 calls / 60s)
+ *   - Per-user DB-backed rate limit (20 calls / 60s) — survives cold starts
+ *     and works across multiple server instances
  *   - Caps input length to 4000 chars
  */
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX        = 20;
-const callLog = new Map<string, number[]>();
 
-function isRateLimited(userId: string): boolean {
-  const now    = Date.now();
-  const window = callLog.get(userId)?.filter((t) => now - t < RATE_LIMIT_WINDOW_MS) ?? [];
-  if (window.length >= RATE_LIMIT_MAX) {
-    callLog.set(userId, window);
-    return true;
-  }
-  window.push(now);
-  callLog.set(userId, window);
-  return false;
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+/** Returns true when the user has hit the rate limit. Fail-open on DB error. */
+async function isRateLimited(userId: string, supabase: SupabaseClient): Promise<boolean> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const { count, error } = await supabase
+    .from("moderation_log")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", windowStart);
+
+  if (error) return false; // fail open — don't block on a missing table
+  return (count ?? 0) >= RATE_LIMIT_MAX;
+}
+
+/** Inserts a log entry and prunes entries older than 24 h (fire-and-forget). */
+async function logCall(userId: string, supabase: SupabaseClient): Promise<void> {
+  await supabase.from("moderation_log").insert({ user_id: userId });
+
+  // Best-effort cleanup — don't await so we don't delay the response
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  supabase.from("moderation_log")
+    .delete()
+    .eq("user_id", userId)
+    .lt("created_at", cutoff);
 }
 
 export async function POST(request: Request) {
@@ -38,9 +53,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  if (isRateLimited(user.id)) {
+  if (await isRateLimited(user.id, supabase)) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
+  await logCall(user.id, supabase);
 
   const { text } = await request.json();
   if (!text || typeof text !== "string") {

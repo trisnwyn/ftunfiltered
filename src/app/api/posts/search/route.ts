@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const q     = (searchParams.get("q") || "").trim();
-  const type  = searchParams.get("type") || "all";
-  const page  = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "12");
+  const q        = (searchParams.get("q") || "").trim();
+  const type     = searchParams.get("type") || "all";
+  const rawPage  = parseInt(searchParams.get("page")  || "1");
+  const rawLimit = parseInt(searchParams.get("limit") || "12");
+  const page  = Math.max(1, isNaN(rawPage)  ? 1  : rawPage);
+  const limit = Math.min(50, Math.max(1, isNaN(rawLimit) ? 12 : rawLimit));
   const offset = (page - 1) * limit;
 
   if (!q) {
